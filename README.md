@@ -59,7 +59,7 @@ the exact queries, result counts and credits used under "How this was searched".
 Requires Python 3.10+.
 
 ```bash
-git clone https://github.com/<you>/fwdcheck.git
+git clone https://github.com/Aakash-M-z/fwdcheck.git
 cd fwdcheck
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
@@ -80,7 +80,7 @@ cd backend
 uvicorn app:app --reload
 ```
 
-Open http://localhost:8000 and try one of the examples, or the ones in `samples/forwards.md`.
+Open http://localhost:8000 (Landing page) or http://localhost:8000/app (Fact-check tool) and try one of the examples, or the ones in `samples/forwards.md`.
 
 ### API
 
@@ -91,15 +91,17 @@ per-claim verdicts with ranked evidence and search trace, the group reply, and s
 
 ```
 backend/
-  app.py       FastAPI server (API + serves the frontend)
+  app.py       FastAPI server (serves landing page at / and tool at /app)
   agent.py     the pipeline: extract → search → rank → judge → reply
   serp.py      SerpApi client with SQLite cache
   sources.py   source credibility classifier
   llm.py       OpenAI-compatible LLM helper (Gemini / OpenAI / Groq / Ollama)
 frontend/
-  index.html   single-file UI, no build step
+  landing.html high-impact landing page (served at /)
+  index.html   fact-checking tool interface (served at /app)
 samples/
   forwards.md  test forwards for the demo
+Procfile       cloud deployment runner for Render / Railway
 ```
 
 ## Limitations

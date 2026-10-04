@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FwdCheck — Fact-check before you forward</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f7f6;
+    --surface: #ffffff;
+    --border: #d0d0ce;
+    --border-strong: #1a1a1a;
+    --text: #1a1a1a;
+    --text-muted: #6b6b6b;
+    --text-faint: #9a9a9a;
+    --false: #c0392b;
+    --true: #1a6b3c;
+    --misleading: #8a5700;
+    --unverified: #5a5a5a;
+    --accent: #1a1a1a;
+    --mono: 'Courier New', Courier, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  a { color: var(--text); }
+  a:hover { text-decoration: underline; }
+
+  /* ── Topbar ── */
+  .topbar {
+    border-bottom: 1px solid var(--border-strong);
+    background: var(--surface);
+  }
+  .topbar-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .wordmark {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .topbar-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .input-panel { position: static; }
+  }
+
+  /* ── Input panel ── */
+  .input-panel { position: sticky; top: 24px; }
+
+  .panel-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .input-box {
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+  }
+
+  .input-box-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+  }
+
+  textarea {
+    display: block;
+    width: 100%;
+    min-height: 200px;
+    border: none;
+    resize: vertical;
+    padding: 12px;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    background: transparent;
+  }
+  textarea:focus { outline: none; }
+  textarea::placeholder { color: var(--text-faint); }
+
+  .examples-row {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .examples-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-right: 2px;
+  }
+  .ex-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    padding: 3px 8px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  .ex-btn:hover { border-color: var(--border-strong); background: var(--surface); }
+
+  .submit-row { margin-top: 12px; }
+  .submit-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 11px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .submit-btn:hover { background: #333; }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .input-note {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-faint);
+    line-height: 1.4;
+  }
+
+  /* ── Results panel ── */
+  .results-panel {}
+
+  /* Empty state */
+  .state-empty {
+    border: 1px solid var(--border);
+    padding: 40px 32px;
+    background: var(--surface);
+  }
+  .state-empty h2 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .state-empty p { color: var(--text-muted); font-size: 13px; }
+
+  /* Progress */
+  .state-progress {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 24px 28px;
+  }
+  .progress-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    font-family: var(--mono);
+  }
+  .progress-steps { list-style: none; }
+  .progress-steps li {
+    font-size: 13px;
+    padding: 5px 0;
+    color: var(--text-faint);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .progress-steps li:last-child { border-bottom: none; }
+  .progress-steps li::before {
+    content: '—';
+    font-family: var(--mono);
+    font-size: 11px;
+    flex-shrink: 0;
+    color: var(--text-faint);
+  }
+  .progress-steps li.step-active {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .progress-steps li.step-active::before {
+    content: '>';
+    color: var(--text);
+  }
+  .progress-steps li.step-done { color: var(--text-muted); }
+  .progress-steps li.step-done::before { content: '+'; color: var(--text-muted); }
+
+  /* Error */
+  .state-error {
+    border: 1px solid var(--false);
+    background: var(--surface);
+    padding: 16px 20px;
+  }
+  .error-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--false);
+    margin-bottom: 6px;
+  }
+  .state-error p { font-size: 13px; color: var(--text); }
+
+  /* ── Report ── */
+  .report-header {
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .verdict-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1.5px solid currentColor;
+  }
+  .verdict-badge.v-false    { color: var(--false); }
+  .verdict-badge.v-true     { color: var(--true); }
+  .verdict-badge.v-misleading { color: var(--misleading); }
+  .verdict-badge.v-unverified { color: var(--unverified); }
+
+  .overall-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-family: var(--mono);
+  }
+  .overall-verdict-text {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .overall-verdict-text.v-false    { color: var(--false); }
+  .overall-verdict-text.v-true     { color: var(--true); }
+  .overall-verdict-text.v-misleading { color: var(--misleading); }
+  .overall-verdict-text.v-unverified { color: var(--unverified); }
+
+  .report-stats {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 2;
+    text-align: right;
+  }
+
+  /* Reply block */
+  .reply-block {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    margin-bottom: 16px;
+  }
+  .reply-block-header {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .reply-block-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .copy-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text);
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  .copy-btn:hover { border-color: var(--border-strong); }
+
+  .reply-body {
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+
+  /* Claim card */
+  .claim-card {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    margin-bottom: 12px;
+  }
+  .claim-card-header {
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .claim-text {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    flex: 1;
+  }
+  .claim-body { padding: 14px 16px; }
+  .claim-explanation {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.55;
+    margin-bottom: 10px;
+  }
+  .claim-confidence {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  /* Sources table */
+  .sources-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+  .sources-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .sources-table tr {
+    border-bottom: 1px solid var(--border);
+  }
+  .sources-table tr:last-child { border-bottom: none; }
+  .sources-table tr.cited-row { background: #f0f4f0; }
+  .sources-table td {
+    padding: 7px 8px;
+    vertical-align: top;
+  }
+  .src-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    width: 24px;
+  }
+  .src-main { }
+  .src-link {
+    display: block;
+    font-weight: 600;
+    color: var(--text);
+    text-decoration: none;
+    margin-bottom: 2px;
+    line-height: 1.35;
+  }
+  .src-link:hover { text-decoration: underline; }
+  .src-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .kind-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .kind-tag.fact_checker { border-color: var(--true); color: var(--true); }
+  .kind-tag.official { border-color: var(--text); color: var(--text); }
+
+  .cited-marker {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--true);
+    font-weight: bold;
+  }
+
+  /* Search trace */
+  .trace-toggle {
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .trace-toggle summary {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+  .trace-toggle summary::-webkit-details-marker { display: none; }
+  .trace-toggle summary::before { content: '+ '; }
+  .trace-toggle[open] summary::before { content: '- '; }
+
+  .trace-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    font-family: var(--mono);
+    margin-top: 8px;
+  }
+  .trace-table th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 4px 8px 4px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .trace-table td {
+    padding: 5px 8px 5px 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text-muted);
+  }
+  .trace-table tr:last-child td { border-bottom: none; }
+  .trace-err { color: var(--false); }
+
+  .scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <span class="wordmark">FwdCheck</span>
+    <span class="topbar-meta">Fact-verification for forwarded messages</span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- Input panel -->
+  <div class="input-panel">
+    <div class="panel-label">Message to verify</div>
+    <div class="input-box">
+      <div class="input-box-header">Paste the forwarded message below</div>
+      <textarea id="text" placeholder="Paste forward here..."></textarea>
+      <div class="examples-row">
+        <span class="examples-label">Examples:</span>
+        <span id="examples"></span>
+      </div>
+    </div>
+    <div class="submit-row">
+      <button class="submit-btn" id="go">Run Verification</button>
+    </div>
+    <div class="input-note">
+      Queries live Google Search and Google News via SerpApi. Takes 10–30 seconds.
+      Use Ctrl+Enter to submit.
+    </div>
+  </div>
+
+  <!-- Results panel -->
+  <div class="results-panel">
+    <div id="results">
+      <div class="state-empty">
+        <h2>No results</h2>
+        <p>Paste a forward on the left and run verification. Each checkable claim will be judged against live search results.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SAMPLES = {
+  "Rs 2000 GPS chip": "BREAKING: New Rs 2000 notes have a nano GPS chip inside. Government can track every note even 120 meters underground! Share with everyone",
+  "Hot water kills virus": "Doctors in Chennai confirm drinking hot water every 15 minutes kills the virus in your throat before it reaches the lungs. Please forward to your family.",
+  "Free laptop scheme (Tamil)": "அனைத்து மாணவர்களுக்கும் மத்திய அரசு இலவச லேப்டாப் வழங்குகிறது. இந்த லிங்கில் உடனே பதிவு செய்யுங்கள். கடைசி தேதி நாளை!",
+};
+const STEPS = [
+  "Extracting claims from message",
+  "Querying Google Search and Google News",
+  "Ranking sources by credibility",
+  "Evaluating evidence",
+  "Generating group reply",
+];
+const LABEL = { false: "FALSE", true: "TRUE", misleading: "MISLEADING", unverified: "UNVERIFIED" };
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safeUrl = (u) => /^https?:\/\//i.test(u) ? u : "#";
+
+// Populate example buttons
+const exContainer = document.getElementById("examples");
+for (const [name, text] of Object.entries(SAMPLES)) {
+  const b = document.createElement("button");
+  b.className = "ex-btn";
+  b.type = "button";
+  b.textContent = name;
+  b.onclick = () => { $("#text").value = text; $("#text").focus(); };
+  exContainer.appendChild(b);
+}
+
+let timer;
+function showProgress() {
+  let step = 0;
+  const draw = () => {
+    const items = STEPS.map((s, i) => {
+      const cls = i < step ? "step-done" : i === step ? "step-active" : "";
+      return `<li class="${cls}">${esc(s)}</li>`;
+    }).join("");
+    $("#results").innerHTML = `
+      <div class="state-progress">
+        <div class="progress-title">Verification in progress</div>
+        <ul class="progress-steps">${items}</ul>
+      </div>`;
+  };
+  draw();
+  timer = setInterval(() => { if (step < STEPS.length - 1) { step++; draw(); } }, 4000);
+}
+
+async function check() {
+  const text = $("#text").value.trim();
+  if (text.length < 10) {
+    $("#results").innerHTML = `<div class="state-error"><div class="error-label">Input error</div><p>Message must be at least 10 characters.</p></div>`;
+    return;
+  }
+  $("#go").disabled = true;
+  $("#go").textContent = "Running...";
+  showProgress();
+  try {
+    const res = await fetch("/api/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    renderReport(data);
+  } catch (err) {
+    $("#results").innerHTML = `
+      <div class="state-error">
+        <div class="error-label">Verification failed</div>
+        <p>${esc(err.message)}</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--text-muted)">Check that API keys in .env are valid and the server is running.</p>
+      </div>`;
+  } finally {
+    clearInterval(timer);
+    $("#go").disabled = false;
+    $("#go").textContent = "Run Verification";
+  }
+}
+
+function renderReport(d) {
+  if (!d.claims.length) {
+    $("#results").innerHTML = `
+      <div class="state-empty">
+        <h2>No checkable claims</h2>
+        <p>This message contains no verifiable factual claims — it may be opinion, a greeting, or instructions to forward.</p>
+      </div>`;
+    return;
+  }
+
+  const s = d.stats;
+  const overallLabel = LABEL[d.overall] || d.overall.toUpperCase();
+
+  let html = `
+    <div class="report-header">
+      <div>
+        <div class="overall-label">Overall verdict</div>
+        <div class="overall-verdict-text v-${d.overall}">${overallLabel}</div>
+        <div style="margin-top:6px;font-size:12px;color:var(--text-muted)">${esc(d.language)} — ${d.claims.length} claim${d.claims.length > 1 ? "s" : ""}</div>
+      </div>
+      <div class="report-stats">
+        <div>${s.searches} searches conducted</div>
+        <div>${s.credits_used} live API credits used</div>
+        <div>${s.seconds}s elapsed</div>
+      </div>
+    </div>`;
+
+  if (d.reply) {
+    html += `
+      <div class="reply-block">
+        <div class="reply-block-header">
+          <span class="reply-block-title">Suggested group reply</span>
+          <button class="copy-btn" id="copy-btn" type="button">Copy</button>
+        </div>
+        <div class="reply-body" id="reply-text">${esc(d.reply)}</div>
+      </div>`;
+  }
+
+  for (const [ci, c] of d.claims.entries()) {
+    const cited = new Set(c.cited);
+
+    const sourcesRows = c.evidence.map((e, i) => {
+      const isCited = cited.has(i + 1);
+      return `
+        <tr class="${isCited ? "cited-row" : ""}">
+          <td class="src-num">[${i + 1}]</td>
+          <td class="src-main">
+            <a class="src-link" href="${esc(safeUrl(e.link))}" target="_blank" rel="noopener noreferrer">${esc(e.title)}</a>
+            <div class="src-meta-row">
+              <span class="kind-tag ${e.kind}">${esc(e.kind_label)}</span>
+              <span>${esc(e.source || e.domain)}</span>
+              ${e.date ? `<span>${esc(e.date)}</span>` : ""}
+              ${isCited ? `<span class="cited-marker">cited</span>` : ""}
+            </div>
+          </td>
+        </tr>`;
+    }).join("");
+
+    const traceRows = c.trace.map(t => `
+      <tr>
+        <td>${esc(t.engine)}</td>
+        <td>${esc(t.query)}</td>
+        <td>${t.error ? `<span class="trace-err">Error</span>` : t.results}</td>
+        <td>${t.cached ? "Cache" : `Live — ${t.ms}ms`}</td>
+      </tr>`).join("");
+
+    html += `
+      <div class="claim-card">
+        <div class="claim-card-header">
+          <div class="claim-text">${esc(c.claim)}</div>
+          <span class="verdict-badge v-${c.verdict}">${LABEL[c.verdict] || c.verdict.toUpperCase()}</span>
+        </div>
+        <div class="claim-body">
+          <p class="claim-explanation">${esc(c.explanation)}</p>
+          <div class="claim-confidence">Confidence: ${c.confidence}%</div>
+          ${c.evidence.length ? `
+            <div class="sources-label">Sources retrieved</div>
+            <div class="scroll">
+              <table class="sources-table">${sourcesRows}</table>
+            </div>` : `<div style="font-size:12px;color:var(--text-faint)">No sources retrieved for this claim.</div>`}
+          <details class="trace-toggle">
+            <summary>Search trace</summary>
+            <div class="scroll">
+              <table class="trace-table">
+                <thead><tr><th>Engine</th><th>Query</th><th>Results</th><th>Source</th></tr></thead>
+                <tbody>${traceRows}</tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+      </div>`;
+  }
+
+  $("#results").innerHTML = html;
+
+  const copyBtn = document.getElementById("copy-btn");
+  if (copyBtn) {
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(d.reply);
+        copyBtn.textContent = "Copied";
+        setTimeout(() => { copyBtn.textContent = "Copy"; }, 1800);
+      } catch {}
+    };
+  }
+}
+
+$("#go").onclick = check;
+$("#text").addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) check();
+});
+</script>
+</body>
+</html>

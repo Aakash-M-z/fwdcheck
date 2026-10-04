@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FwdCheck — Fact-check before you forward</title>
+<meta name="description" content="AI fact-verification for WhatsApp forwards in any Indian language. Live search. Real evidence.">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --black:   #0a0a0a;
+  --white:   #f5f4f0;
+  --paper:   #f0efe9;
+  --border:  #1e1e1e;
+  --border-l:#d8d6ce;
+  --grey:    #888;
+  --dim:     #555;
+  --red:     #b52b1e;
+  --green:   #176336;
+  --amber:   #7a4d00;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --mono: 'Courier New', Courier, monospace;
+}
+
+html { scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--black); color: var(--white); font-size: 15px; line-height: 1.6; overflow-x: hidden; }
+a { color: inherit; text-decoration: none; }
+img { display: block; max-width: 100%; }
+
+/* ─── UTILS ─── */
+.mono { font-family: var(--mono); }
+.section-wrap { max-width: 1280px; margin: 0 auto; padding: 0 40px; }
+@media (max-width: 640px) { .section-wrap { padding: 0 20px; } }
+
+/* ─── NAV ─── */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10,10,10,0.92);
+  backdrop-filter: blur(8px);
+}
+.nav-inner {
+  max-width: 1280px; margin: 0 auto; padding: 0 40px;
+  height: 50px; display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand {
+  font-family: var(--mono); font-size: 12px; font-weight: bold;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--white);
+}
+.nav-right { display: flex; align-items: center; gap: 36px; }
+.nav-link {
+  font-size: 12px; letter-spacing: 0.04em; color: var(--grey);
+  transition: color 0.1s;
+}
+.nav-link:hover { color: var(--white); }
+.nav-cta {
+  font-family: var(--mono); font-size: 11px; font-weight: bold;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--white); color: var(--black);
+  padding: 8px 20px; display: inline-block;
+}
+.nav-cta:hover { background: #ddd; }
+@media (max-width: 640px) { .nav-link { display: none; } }
+
+/* ─── HERO ─── */
+.hero {
+  padding: 140px 40px 0;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.hero-inner { max-width: 1280px; margin: 0 auto; }
+
+.hero-eyebrow {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--grey);
+  margin-bottom: 32px; display: flex; align-items: center; gap: 14px;
+}
+.hero-eyebrow::before { content: ''; width: 32px; height: 1px; background: var(--grey); display: block; }
+
+.hero-h1 {
+  font-size: clamp(52px, 8.5vw, 120px);
+  font-weight: 800; letter-spacing: -0.04em; line-height: 0.95;
+  color: var(--white); margin-bottom: 0;
+}
+.hero-h1 .dim { color: #2e2e2e; }
+
+.hero-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-top: 64px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 860px) { .hero-body { grid-template-columns: 1fr; } }
+
+.hero-left {
+  padding: 40px 48px 40px 0;
+  border-right: 1px solid var(--border);
+}
+@media (max-width: 860px) { .hero-left { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 0; } }
+
+.hero-desc {
+  font-size: 17px; line-height: 1.65; color: var(--grey);
+  max-width: 44ch; margin-bottom: 40px;
+}
+.hero-desc strong { color: var(--white); font-weight: 500; }
+
+.hero-actions { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.btn-primary {
+  font-family: var(--mono); font-size: 12px; font-weight: bold;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--white); color: var(--black);
+  padding: 13px 28px; display: inline-block; border: 1px solid var(--white);
+}
+.btn-primary:hover { background: #ddd; border-color: #ddd; }
+.btn-ghost {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--grey);
+  border-bottom: 1px solid var(--border); padding-bottom: 2px;
+}
+.btn-ghost:hover { color: var(--white); border-color: var(--white); }
+
+/* hero stats */
+.hero-stats {
+  padding: 40px 0 40px 48px;
+}
+@media (max-width: 860px) { .hero-stats { padding: 32px 0 0; } }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.stat-cell {
+  background: var(--black); padding: 28px 24px;
+}
+.stat-num {
+  font-size: 36px; font-weight: 800; letter-spacing: -0.03em;
+  line-height: 1; color: var(--white); margin-bottom: 8px;
+}
+.stat-label { font-size: 12px; color: var(--grey); line-height: 1.45; }
+
+/* terminal mockup */
+.hero-terminal {
+  margin-top: 80px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: #0f0f0f;
+}
+.term-bar {
+  border-bottom: 1px solid var(--border); padding: 10px 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.term-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+.term-title {
+  font-family: var(--mono); font-size: 11px; color: #444;
+  margin-left: 8px; letter-spacing: 0.04em;
+}
+.term-body { padding: 24px 28px; display: grid; grid-template-columns: 1fr 1.4fr; gap: 28px; }
+@media (max-width: 640px) { .term-body { grid-template-columns: 1fr; } }
+
+.term-input-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #444; margin-bottom: 10px;
+}
+.term-input-box {
+  border: 1px solid #222; padding: 14px;
+  font-size: 13px; color: #999; line-height: 1.55;
+}
+.term-input-box .fwd-label {
+  font-family: var(--mono); font-size: 10px; color: #3a3a3a;
+  letter-spacing: 0.06em; margin-bottom: 8px; text-transform: uppercase;
+}
+
+.term-results { }
+.term-result-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #444; margin-bottom: 10px;
+}
+.term-claim {
+  border: 1px solid #1e1e1e; padding: 12px 14px; margin-bottom: 8px;
+}
+.term-claim-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; margin-bottom: 6px;
+}
+.term-claim-text { font-size: 12px; color: #aaa; line-height: 1.4; flex: 1; }
+.term-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: bold;
+  letter-spacing: 0.1em; padding: 2px 8px; border: 1px solid; white-space: nowrap; flex-shrink: 0;
+}
+.term-badge.false    { color: #e05444; border-color: #5a1a14; }
+.term-badge.mislead  { color: #d4920a; border-color: #5a3c00; }
+.term-badge.unverif  { color: #555;    border-color: #2e2e2e; }
+.term-source { font-family: var(--mono); font-size: 11px; color: #3a3a3a; }
+.term-source span { color: #2a6640; }
+
+/* ─── TICKER ─── */
+.ticker {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0; background: #111; overflow: hidden;
+}
+.ticker-inner {
+  display: flex; gap: 60px; white-space: nowrap;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #444;
+}
+.ticker-item { display: flex; align-items: center; gap: 14px; }
+.ticker-item::after { content: '/'; color: #2a2a2a; }
+
+/* ─── SECTION COMMON ─── */
+.sec { padding: 100px 40px; }
+@media (max-width: 640px) { .sec { padding: 64px 20px; } }
+
+.sec-tag {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--grey);
+  margin-bottom: 24px; display: flex; align-items: center; gap: 12px;
+}
+.sec-tag::before { content: ''; width: 24px; height: 1px; background: var(--grey); display: block; }
+.sec-title {
+  font-size: clamp(30px, 4.5vw, 52px); font-weight: 700;
+  letter-spacing: -0.025em; line-height: 1.08; margin-bottom: 16px;
+}
+.sec-sub { font-size: 15px; color: var(--grey); line-height: 1.65; max-width: 52ch; }
+
+/* ─── PROBLEM (light bg) ─── */
+.sec-light { background: var(--white); color: var(--black); border-top: 1px solid var(--border-l); border-bottom: 1px solid var(--border-l); }
+.sec-light .sec-tag { color: var(--dim); }
+.sec-light .sec-tag::before { background: var(--dim); }
+.sec-light .sec-sub { color: var(--dim); }
+
+.problem-cols {
+  margin-top: 64px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  border: 1px solid var(--border-l);
+}
+@media (max-width: 860px) { .problem-cols { grid-template-columns: 1fr; } }
+
+.problem-col {
+  padding: 0; border-right: 1px solid var(--border-l);
+}
+.problem-col:last-child { border-right: none; }
+@media (max-width: 860px) { .problem-col { border-right: none; border-bottom: 1px solid var(--border-l); } }
+@media (max-width: 860px) { .problem-col:last-child { border-bottom: none; } }
+
+.big-stat {
+  padding: 40px;
+  border-bottom: 1px solid var(--border-l);
+}
+.big-num {
+  font-size: clamp(60px, 10vw, 100px); font-weight: 800;
+  letter-spacing: -0.04em; line-height: 1; color: var(--black); margin-bottom: 12px;
+}
+.big-label { font-size: 13px; color: var(--dim); max-width: 36ch; line-height: 1.5; }
+
+.problem-rows { }
+.problem-row {
+  padding: 24px 40px; border-bottom: 1px solid var(--border-l);
+  display: grid; grid-template-columns: 28px 1fr; gap: 18px;
+}
+.problem-row:last-child { border-bottom: none; }
+.pr-num { font-family: var(--mono); font-size: 11px; color: #aaa; padding-top: 2px; }
+.pr-body h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: var(--black); }
+.pr-body p  { font-size: 13px; color: var(--dim); line-height: 1.55; }
+
+/* ─── PIPELINE (dark) ─── */
+.sec-dark { background: #0a0a0a; border-top: 1px solid var(--border); }
+
+.pipe-grid {
+  margin-top: 56px;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  border: 1px solid var(--border);
+}
+@media (max-width: 900px) { .pipe-grid { grid-template-columns: 1fr; } }
+.pipe-cell {
+  padding: 32px 28px; border-right: 1px solid var(--border);
+}
+.pipe-cell:last-child { border-right: none; }
+@media (max-width: 900px) {
+  .pipe-cell { border-right: none; border-bottom: 1px solid var(--border); }
+  .pipe-cell:last-child { border-bottom: none; }
+}
+.pipe-n {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  color: #333; margin-bottom: 20px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.pipe-name { font-size: 13px; font-weight: 600; color: var(--white); margin-bottom: 10px; line-height: 1.3; }
+.pipe-desc { font-size: 12px; color: #555; line-height: 1.55; }
+
+/* ─── VERDICTS (light) ─── */
+.verdict-grid {
+  margin-top: 56px; display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--border-l); gap: 1px; border: 1px solid var(--border-l);
+}
+@media (max-width: 860px) { .verdict-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .verdict-grid { grid-template-columns: 1fr; } }
+.verdict-cell { background: var(--white); padding: 36px 32px; }
+.v-badge {
+  font-family: var(--mono); font-size: 11px; font-weight: bold;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  display: inline-block; padding: 4px 12px; border: 1.5px solid; margin-bottom: 18px;
+}
+.v-badge.false    { color: var(--red); border-color: var(--red); }
+.v-badge.true     { color: var(--green); border-color: var(--green); }
+.v-badge.mislead  { color: var(--amber); border-color: var(--amber); }
+.v-badge.unverif  { color: #777; border-color: #bbb; }
+.v-def { font-size: 13px; color: var(--dim); line-height: 1.65; }
+
+/* ─── EVIDENCE ─── */
+.evidence-grid {
+  margin-top: 56px; display: grid; grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--border);
+}
+@media (max-width: 860px) { .evidence-grid { grid-template-columns: 1fr; } }
+.evidence-col {
+  padding: 36px 32px; border-right: 1px solid var(--border);
+}
+.evidence-col:last-child { border-right: none; }
+@media (max-width: 860px) {
+  .evidence-col { border-right: none; border-bottom: 1px solid var(--border); }
+  .evidence-col:last-child { border-bottom: none; }
+}
+.ev-tag {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #555; padding: 4px 10px;
+  border: 1px solid var(--border); display: inline-block; margin-bottom: 22px;
+}
+.ev-h3 { font-size: 15px; font-weight: 600; color: var(--white); margin-bottom: 10px; }
+.ev-p  { font-size: 13px; color: #555; line-height: 1.6; }
+
+.cred-tier {
+  margin-top: 32px; border: 1px solid var(--border); background: #0f0f0f; padding: 28px 32px;
+}
+.cred-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #444; margin-bottom: 16px;
+}
+.cred-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.cred-pill {
+  font-family: var(--mono); font-size: 11px; padding: 4px 12px; border: 1px solid;
+}
+.cred-pill.top  { border-color: #2a6640; color: #2a6640; }
+.cred-pill.gov  { border-color: #444; color: #888; }
+.cred-pill.news { border-color: #2a2a2a; color: #444; }
+.cred-note { font-size: 12px; color: #444; }
+
+/* ─── LANGUAGES ─── */
+.lang-grid {
+  margin-top: 48px; display: flex; flex-wrap: wrap; gap: 8px;
+}
+.lang-pill {
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em;
+  padding: 7px 16px; border: 1px solid var(--border); color: var(--grey);
+}
+.lang-pill:hover { border-color: #444; color: var(--white); }
+
+/* ─── CTA ─── */
+.cta-sec {
+  background: var(--white); color: var(--black);
+  border-top: 1px solid var(--border-l);
+  padding: 120px 40px;
+}
+.cta-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+@media (max-width: 860px) { .cta-inner { grid-template-columns: 1fr; gap: 40px; } }
+
+.cta-h2 { font-size: clamp(36px, 5vw, 60px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; color: var(--black); margin-bottom: 20px; }
+.cta-p  { font-size: 15px; color: var(--dim); line-height: 1.65; margin-bottom: 36px; }
+.cta-btn {
+  font-family: var(--mono); font-size: 12px; font-weight: bold;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  background: var(--black); color: var(--white); padding: 15px 36px;
+  display: inline-block; border: 1px solid var(--black);
+}
+.cta-btn:hover { background: #222; }
+.cta-note { margin-top: 18px; font-family: var(--mono); font-size: 11px; color: #aaa; }
+
+.cta-right { }
+.cta-block {
+  border: 1px solid var(--border-l); background: #fafaf8;
+}
+.cta-block-head {
+  border-bottom: 1px solid var(--border-l); padding: 12px 20px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #aaa;
+}
+.cta-block-body { padding: 20px; }
+.cta-step {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 0; border-bottom: 1px solid var(--border-l);
+}
+.cta-step:last-child { border-bottom: none; padding-bottom: 0; }
+.cta-step-n { font-family: var(--mono); font-size: 11px; color: #bbb; min-width: 20px; padding-top: 1px; }
+.cta-step-t { font-size: 13px; color: var(--black); line-height: 1.45; }
+.cta-step-t span { display: block; font-size: 12px; color: var(--dim); margin-top: 2px; }
+
+/* ─── FOOTER ─── */
+.footer {
+  background: var(--black); border-top: 1px solid var(--border); padding: 28px 40px;
+}
+.footer-inner {
+  max-width: 1280px; margin: 0 auto;
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+}
+.footer-brand { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #333; }
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { font-size: 12px; color: #333; letter-spacing: 0.03em; }
+.footer-links a:hover { color: var(--white); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <span class="nav-brand">FwdCheck</span>
+    <div class="nav-right">
+      <a href="#how-it-works" class="nav-link">How it works</a>
+      <a href="#evidence" class="nav-link">Evidence</a>
+      <a href="#languages" class="nav-link">Languages</a>
+      <a href="/app" class="nav-cta">Open tool</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Fact-verification system &mdash; India</div>
+    <h1 class="hero-h1">
+      Check the forward.<br>
+      <span class="dim">Before you share it.</span>
+    </h1>
+    <div class="hero-body">
+      <div class="hero-left">
+        <p class="hero-desc">
+          Paste any WhatsApp forward — in <strong>any Indian language</strong>. FwdCheck extracts each factual claim, searches live Google results and news, ranks Indian fact-checkers above all other sources, and returns a sourced verdict in under 30 seconds.
+        </p>
+        <div class="hero-actions">
+          <a href="/app" class="btn-primary">Run a verification</a>
+          <a href="#how-it-works" class="btn-ghost">See how it works</a>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="stats-grid">
+          <div class="stat-cell">
+            <div class="stat-num">&lt;30s</div>
+            <div class="stat-label">Average time to full verdict with sources</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-num">3</div>
+            <div class="stat-label">Live searches per claim — web, news, regional</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-num">4</div>
+            <div class="stat-label">Possible verdicts: True, False, Misleading, Unverified</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-num">13+</div>
+            <div class="stat-label">Indian languages and mixed scripts supported</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Terminal mockup -->
+    <div class="hero-terminal">
+      <div class="term-bar">
+        <div class="term-dot"></div>
+        <div class="term-dot"></div>
+        <div class="term-dot"></div>
+        <span class="term-title">localhost:8001/app &mdash; verification result</span>
+      </div>
+      <div class="term-body">
+        <div>
+          <div class="term-input-label">Input message</div>
+          <div class="term-input-box">
+            <div class="fwd-label">Forwarded many times</div>
+            "New Rs.2000 notes have a nano GPS chip inside. Govt can track every note even 120 metres underground. Share with everyone."
+          </div>
+        </div>
+        <div class="term-results">
+          <div class="term-result-label">Claims &amp; verdicts</div>
+          <div class="term-claim">
+            <div class="term-claim-row">
+              <div class="term-claim-text">Rs.2000 notes contain a nano GPS chip</div>
+              <span class="term-badge false">FALSE</span>
+            </div>
+            <div class="term-source"><span>Alt News</span> — Claim debunked, no such chip exists in any denomination</div>
+          </div>
+          <div class="term-claim">
+            <div class="term-claim-row">
+              <div class="term-claim-text">Government can track notes 120m underground</div>
+              <span class="term-badge mislead">MISLEADING</span>
+            </div>
+            <div class="term-source"><span>BOOM Live</span> — GPS signals cannot penetrate earth; premise is false</div>
+          </div>
+          <div class="term-claim">
+            <div class="term-claim-row">
+              <div class="term-claim-text">Original source of the viral message</div>
+              <span class="term-badge unverif">UNVERIFIED</span>
+            </div>
+            <div class="term-source">No credible origin or first instance found in results</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">
+    <span class="ticker-item">Live Google Search</span>
+    <span class="ticker-item">Google News API</span>
+    <span class="ticker-item">SerpApi India-localised</span>
+    <span class="ticker-item">Gemini 2.5 Flash</span>
+    <span class="ticker-item">Indian fact-checkers first</span>
+    <span class="ticker-item">SQLite result cache</span>
+    <span class="ticker-item">Any Indian language</span>
+    <span class="ticker-item">Reply in original language</span>
+    <span class="ticker-item">No account required</span>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section class="sec sec-light">
+  <div class="section-wrap">
+    <div class="sec-tag">The problem</div>
+    <h2 class="sec-title">Misinformation spreads fastest<br>in family group chats.</h2>
+    <p class="sec-sub">Forwarded messages bypass every editorial filter. A false claim can reach thousands of people in minutes — in languages most fact-check tools cannot read.</p>
+
+    <div class="problem-cols">
+      <div class="problem-col">
+        <div class="big-stat">
+          <div class="big-num">3.2B</div>
+          <div class="big-label">WhatsApp messages forwarded daily in India, most unverified by the sender.</div>
+        </div>
+        <div class="big-stat" style="border-bottom:none;">
+          <div class="big-num">72%</div>
+          <div class="big-label">Of viral misinformation in India originates or amplifies through messaging apps, not open social media.</div>
+        </div>
+      </div>
+      <div class="problem-col">
+        <div class="problem-rows">
+          <div class="problem-row">
+            <span class="pr-num">01</span>
+            <div class="pr-body">
+              <h4>Speed beats accuracy</h4>
+              <p>A forward takes one tap to send. Checking each claim manually takes minutes most people will not spend in a group chat context.</p>
+            </div>
+          </div>
+          <div class="problem-row">
+            <span class="pr-num">02</span>
+            <div class="pr-body">
+              <h4>Regional language gap</h4>
+              <p>Most fact-check tools work in English only. Forwards in Tamil, Hindi, Bengali, Marathi, or Hinglish are effectively unchecked.</p>
+            </div>
+          </div>
+          <div class="problem-row">
+            <span class="pr-num">03</span>
+            <div class="pr-body">
+              <h4>No shareable correction</h4>
+              <p>Even when a fact-check exists, sharing a long article into a family group rarely works. People need a short, respectful reply they can paste directly.</p>
+            </div>
+          </div>
+          <div class="problem-row">
+            <span class="pr-num">04</span>
+            <div class="pr-body">
+              <h4>Trust through repetition</h4>
+              <p>The more times a claim is forwarded, the more credible it appears. Speed of correction matters as much as correctness of the correction itself.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="sec sec-dark" id="how-it-works">
+  <div class="section-wrap">
+    <div class="sec-tag">How it works</div>
+    <h2 class="sec-title">Five steps. One verifiable pipeline.</h2>
+    <p class="sec-sub">Every claim goes through the same process. No black boxes — you see the exact queries run, the sources retrieved, and the reasoning behind every verdict.</p>
+
+    <div class="pipe-grid">
+      <div class="pipe-cell">
+        <div class="pipe-n">STEP 01</div>
+        <div class="pipe-name">Claim extraction</div>
+        <div class="pipe-desc">LLM detects language, isolates up to three checkable factual claims, and writes a precise English and native-language search query for each.</div>
+      </div>
+      <div class="pipe-cell">
+        <div class="pipe-n">STEP 02</div>
+        <div class="pipe-name">Live evidence</div>
+        <div class="pipe-desc">SerpApi runs three parallel searches per claim — Google Web ("claim fact check"), Google News, and a native-language query — all India-localised (gl=in).</div>
+      </div>
+      <div class="pipe-cell">
+        <div class="pipe-n">STEP 03</div>
+        <div class="pipe-name">Source ranking</div>
+        <div class="pipe-desc">Results are scored by credibility tier. Indian fact-checkers, .gov.in, PIB, RBI, and WHO rank above general news and other web results.</div>
+      </div>
+      <div class="pipe-cell">
+        <div class="pipe-n">STEP 04</div>
+        <div class="pipe-name">Evidence verdict</div>
+        <div class="pipe-desc">The LLM judges each claim using only the retrieved search results. It cannot invent facts. Every citation is validated against the source list.</div>
+      </div>
+      <div class="pipe-cell">
+        <div class="pipe-n">STEP 05</div>
+        <div class="pipe-name">Group reply</div>
+        <div class="pipe-desc">A short, factual correction is written in the forward's own language, with source links — ready to paste back into the group immediately.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VERDICTS -->
+<section class="sec sec-light">
+  <div class="section-wrap">
+    <div class="sec-tag">Verdict system</div>
+    <h2 class="sec-title">Four possible outcomes.<br>No guessing.</h2>
+    <p class="sec-sub">Every verdict is grounded strictly in the retrieved evidence. When evidence is absent or conflicting, the system says so — it does not fabricate a conclusion.</p>
+
+    <div class="verdict-grid">
+      <div class="verdict-cell">
+        <span class="v-badge false">False</span>
+        <p class="v-def">A credible fact-checker or official source directly contradicts the claim. The specific claim has been actively investigated and debunked.</p>
+      </div>
+      <div class="verdict-cell">
+        <span class="v-badge true">True</span>
+        <p class="v-def">Multiple credible and independent sources clearly support the claim without significant qualification, missing context, or contradiction.</p>
+      </div>
+      <div class="verdict-cell">
+        <span class="v-badge mislead">Misleading</span>
+        <p class="v-def">The claim has a factual basis but omits critical context, is substantially exaggerated, or refers to a situation that has since changed.</p>
+      </div>
+      <div class="verdict-cell">
+        <span class="v-badge unverif">Unverified</span>
+        <p class="v-def">Search results are absent, too sparse, or mutually contradictory. The claim cannot be confirmed or ruled out on the available evidence.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EVIDENCE -->
+<section class="sec sec-dark" id="evidence">
+  <div class="section-wrap">
+    <div class="sec-tag">Evidence layer</div>
+    <h2 class="sec-title">Live search, not training data.</h2>
+    <p class="sec-sub">The LLM reasons over evidence — it does not provide it. Every verdict cites current, retrievable, publicly accessible search results.</p>
+
+    <div class="evidence-grid">
+      <div class="evidence-col">
+        <span class="ev-tag">Google Search</span>
+        <h3 class="ev-h3">Fact-check queries</h3>
+        <p class="ev-p">Each claim is searched as "claim fact check" with Indian localisation (gl=in). Finds existing debunks from Indian fact-checking organisations and official government clarifications.</p>
+      </div>
+      <div class="evidence-col">
+        <span class="ev-tag">Google News</span>
+        <h3 class="ev-h3">Current reporting</h3>
+        <p class="ev-p">A parallel news search retrieves the latest journalism on each claim. Essential for recent events where training data is stale — new hoaxes appear daily.</p>
+      </div>
+      <div class="evidence-col">
+        <span class="ev-tag">Regional search</span>
+        <h3 class="ev-h3">Native-language results</h3>
+        <p class="ev-p">When the forward is not in English, a third query runs in the original language with the correct Google hl= parameter — surfacing regional fact-checks English queries miss entirely.</p>
+      </div>
+    </div>
+
+    <div class="cred-tier">
+      <div class="cred-label">Source credibility tier — ranked in this order</div>
+      <div class="cred-pills">
+        <span class="cred-pill top">Indian fact-checkers</span>
+        <span class="cred-pill gov">.gov.in &nbsp;/&nbsp; PIB</span>
+        <span class="cred-pill gov">WHO &nbsp;/&nbsp; RBI &nbsp;/&nbsp; Official bodies</span>
+        <span class="cred-pill news">Major news outlets</span>
+        <span class="cred-pill news">Other web results</span>
+      </div>
+      <div class="cred-note">Fact-checkers tracked: Alt News, BOOM, Factly, Newschecker, YouTurn, Vishvas News, The Quint WebQoof — and more.</div>
+    </div>
+  </div>
+</section>
+
+<!-- LANGUAGES -->
+<section class="sec sec-dark" id="languages">
+  <div class="section-wrap">
+    <div class="sec-tag">Languages</div>
+    <h2 class="sec-title">Any Indian language.<br>Including mixed script.</h2>
+    <p class="sec-sub">Language is detected automatically. The reply is written in the same language as the original forward — no manual selection required.</p>
+
+    <div class="lang-grid">
+      <span class="lang-pill">English</span>
+      <span class="lang-pill">Hindi — हिन्दी</span>
+      <span class="lang-pill">Tamil — தமிழ்</span>
+      <span class="lang-pill">Telugu — తెలుగు</span>
+      <span class="lang-pill">Kannada — ಕನ್ನಡ</span>
+      <span class="lang-pill">Malayalam — മലയാളം</span>
+      <span class="lang-pill">Bengali — বাংলা</span>
+      <span class="lang-pill">Marathi — मराठी</span>
+      <span class="lang-pill">Gujarati — ગુજરાતી</span>
+      <span class="lang-pill">Punjabi — ਪੰਜਾਬੀ</span>
+      <span class="lang-pill">Odia — ଓଡ଼ିଆ</span>
+      <span class="lang-pill">Hinglish (mixed)</span>
+      <span class="lang-pill">Tanglish (mixed)</span>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-sec">
+  <div class="cta-inner">
+    <div>
+      <h2 class="cta-h2">Check a forward right now.</h2>
+      <p class="cta-p">Paste any message. Full verdict with sources in under 30 seconds. No account, no login, no setup.</p>
+      <a href="/app" class="cta-btn">Open FwdCheck</a>
+      <div class="cta-note">Powered by Google Gemini + SerpApi. Repeat checks are served from cache at zero cost.</div>
+    </div>
+    <div class="cta-right">
+      <div class="cta-block">
+        <div class="cta-block-head">What happens when you submit a forward</div>
+        <div class="cta-block-body">
+          <div class="cta-step">
+            <span class="cta-step-n">01</span>
+            <div class="cta-step-t">Claims extracted
+              <span>Up to 3 checkable factual statements identified from the message</span>
+            </div>
+          </div>
+          <div class="cta-step">
+            <span class="cta-step-n">02</span>
+            <div class="cta-step-t">Live searches run
+              <span>3 parallel SerpApi queries per claim — web, news, regional</span>
+            </div>
+          </div>
+          <div class="cta-step">
+            <span class="cta-step-n">03</span>
+            <div class="cta-step-t">Sources ranked
+              <span>Fact-checkers and official sources weighted above general results</span>
+            </div>
+          </div>
+          <div class="cta-step">
+            <span class="cta-step-n">04</span>
+            <div class="cta-step-t">Verdict returned
+              <span>True / False / Misleading / Unverified — with cited sources</span>
+            </div>
+          </div>
+          <div class="cta-step">
+            <span class="cta-step-n">05</span>
+            <div class="cta-step-t">Reply generated
+              <span>Short correction in the forward's language, ready to paste back</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <span class="footer-brand">FwdCheck — SerpApi India Hackathon 2026</span>
+    <div class="footer-links">
+      <a href="/app">Tool</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#languages">Languages</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

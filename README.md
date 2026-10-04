@@ -119,7 +119,7 @@ samples/
 
 <!-- Required by hackathon rules: list the AI tools you used and how. Edit this. -->
 Claude (Anthropic) helped scaffold the initial code. The app uses an LLM at runtime
-for claim extraction, verdicts and replies.
+for claim extraction  verdicts and replies.
 
 ## License
 
